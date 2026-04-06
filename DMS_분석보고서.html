@@ -1,0 +1,841 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>천지인 DMS 재구성 분석 보고서</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f4f6fa;
+    --bg2: #ffffff;
+    --bg3: #eef1f7;
+    --border: #dde2ed;
+    --border2: #c8d0e2;
+    --text: #1a2236;
+    --text2: #4a5a78;
+    --text3: #8fa3c0;
+    --accent: #2563eb;
+    --good: #059669;
+    --warn: #d97706;
+    --bad: #dc2626;
+    --blue: #2563eb;
+    --font: 'Noto Sans KR', sans-serif;
+    --mono: 'JetBrains Mono', monospace;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 14px;
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  /* ── HEADER ── */
+  .header {
+    background: linear-gradient(135deg, rgba(26,26,26,0.88) 0%, rgba(46,46,46,0.82) 60%, rgba(34,34,34,0.86) 100%);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+    padding: 44px 64px 32px;
+    position: relative;
+    overflow: hidden;
+  }
+  .header::before {
+    content: '';
+    position: absolute;
+    top: -80px; right: -80px;
+    width: 400px; height: 400px;
+    background: radial-gradient(circle, rgba(255,255,255,0.05) 0%, transparent 70%);
+    border-radius: 50%;
+  }
+  .header-badge {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 2px;
+    color: rgba(255,255,255,0.85);
+    border: 1px solid rgba(255,255,255,0.3);
+    padding: 3px 10px;
+    border-radius: 2px;
+    margin-bottom: 14px;
+    text-transform: uppercase;
+  }
+  .header h1 {
+    font-size: 26px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    margin-bottom: 6px;
+    color: #ffffff;
+  }
+  .header h1 span { color: #fde68a; }
+  .header-sub {
+    font-size: 13px;
+    color: rgba(255,255,255,0.65);
+    font-weight: 300;
+  }
+  .header-meta {
+    margin-top: 22px;
+    display: flex;
+    gap: 32px;
+    flex-wrap: wrap;
+  }
+  .meta-item { display: flex; flex-direction: column; gap: 2px; }
+  .meta-label { font-size: 10px; color: rgba(255,255,255,0.5); letter-spacing: 1px; text-transform: uppercase; font-family: var(--mono); }
+  .meta-value { font-size: 19px; font-weight: 700; color: #fde68a; }
+  .meta-value.small { font-size: 13px; color: rgba(255,255,255,0.85); font-weight: 500; }
+
+  /* ── NAV ── */
+  .nav {
+    background: #ffffff;
+    border-bottom: 1px solid var(--border);
+    padding: 0 64px;
+    display: flex;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+  }
+  .nav-tab {
+    padding: 14px 22px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text3);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+  .nav-tab:hover { color: var(--text2); }
+  .nav-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  /* ── MAIN ── */
+  .main { padding: 40px 64px; max-width: 1400px; margin: 0 auto; }
+  .section { display: none; }
+  .section.active { display: block; }
+
+  /* ── SECTION TITLE ── */
+  .section-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 24px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .section-title .dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+    flex-shrink: 0;
+  }
+  .section-title .sub { font-size: 11px; color: var(--text3); font-weight: 400; margin-left: auto; font-family: var(--mono); }
+
+  /* ── TABLE ── */
+  .table-wrap { overflow-x: auto; margin-bottom: 32px; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th {
+    background: var(--bg3);
+    color: var(--text2);
+    font-weight: 500;
+    padding: 10px 14px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.3px;
+  }
+  td {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+    line-height: 1.5;
+  }
+  tr:hover td { background: rgba(37,99,235,0.015); }
+
+  /* ── STRUCTURE COMPARE ── */
+  .compare-wrap {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    margin-bottom: 32px;
+  }
+  .compare-panel {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .compare-panel-header {
+    padding: 13px 18px;
+    border-bottom: 1px solid var(--border);
+    font-size: 12px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+  }
+  .panel-old .compare-panel-header { background: rgba(220,38,38,0.04); color: var(--bad); }
+  .panel-new .compare-panel-header { background: rgba(5,150,105,0.04); color: var(--good); }
+  .panel-badge {
+    font-family: var(--mono);
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 2px;
+    margin-left: auto;
+  }
+  .panel-old .panel-badge { background: rgba(220,38,38,0.08); color: var(--bad); }
+  .panel-new .panel-badge { background: rgba(5,150,105,0.08); color: var(--good); }
+  .tree-body { padding: 16px 20px; font-family: var(--mono); font-size: 11.5px; line-height: 2.1; }
+  .tree-depth0 { color: #1e3a8a; font-weight: 700; }
+  .tree-depth1 { color: #1d4ed8; padding-left: 16px; }
+  .tree-depth2 { color: var(--text2); padding-left: 32px; font-size: 11px; }
+  .tree-depth3 { color: var(--text3); padding-left: 48px; font-size: 10.5px; }
+  .tree-moved { color: var(--warn); }
+  .tree-new { color: var(--good); }
+  .tree-count { font-size: 10px; color: var(--text3); margin-left: 6px; }
+
+  /* ── PERSONA TABLE ── */
+  .persona-table-wrap { overflow-x: auto; }
+  .persona-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .persona-table th {
+    background: var(--bg3);
+    padding: 10px 12px;
+    text-align: left;
+    border-bottom: 2px solid var(--border2);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text2);
+    font-family: var(--mono);
+    white-space: nowrap;
+  }
+  .persona-table td {
+    padding: 12px 12px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  .persona-name { font-weight: 700; font-size: 13px; margin-bottom: 2px; }
+  .persona-role { font-size: 10px; color: var(--text3); font-family: var(--mono); }
+  .path-old { font-family: var(--mono); font-size: 10.5px; color: var(--bad); line-height: 1.9; }
+  .path-new { font-family: var(--mono); font-size: 10.5px; color: var(--good); line-height: 1.9; }
+  .path-arrow { color: var(--text3); margin: 0 2px; }
+  .impact-badge {
+    display: inline-flex;
+    align-items: center;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-family: var(--mono);
+  }
+  .impact-up   { background: rgba(5,150,105,0.1);  color: var(--good); }
+  .impact-same { background: rgba(37,99,235,0.1);   color: var(--blue); }
+  .impact-mixed{ background: rgba(217,119,6,0.1);   color: var(--warn); }
+  .impact-down { background: rgba(220,38,38,0.1);   color: var(--bad);  }
+  .impact-note { font-size: 11px; color: var(--text2); margin-top: 4px; line-height: 1.5; }
+  .delta-chip {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 3px;
+    background: var(--bg3);
+    color: var(--text2);
+  }
+
+  /* ── MATRIX ── */
+  .matrix-wrap { overflow-x: auto; margin-bottom: 32px; }
+  .matrix-table { border-collapse: collapse; font-size: 11px; width: 100%; }
+  .matrix-table th, .matrix-table td { border: 1px solid var(--border); padding: 9px 13px; text-align: center; white-space: nowrap; }
+  .matrix-table th { background: var(--bg3); color: var(--text2); font-family: var(--mono); font-size: 10px; }
+  .matrix-table .row-header { text-align: left; font-weight: 600; background: var(--bg3); color: var(--text); padding-left: 14px; }
+  .cell-yes     { background: rgba(5,150,105,0.09); color: var(--good); font-weight: 700; }
+  .cell-partial { background: rgba(217,119,6,0.07); color: var(--warn); }
+  .cell-na      { color: var(--border2); }
+
+  /* ── SUMMARY ── */
+  .summary-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+    margin-bottom: 32px;
+  }
+  .summary-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px 22px;
+  }
+  .summary-card h3 {
+    font-size: 13px;
+    font-weight: 700;
+    margin-bottom: 14px;
+    color: var(--accent);
+  }
+  .summary-list { list-style: none; }
+  .summary-list li {
+    padding: 7px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 12px;
+    color: var(--text2);
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+  }
+  .summary-list li:last-child { border-bottom: none; }
+  .bullet { color: var(--accent); flex-shrink: 0; margin-top: 1px; }
+
+  /* ── MISC ── */
+  .priority-high { color: var(--bad);  font-weight: 600; }
+  .priority-mid  { color: var(--warn); font-weight: 600; }
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg3); }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+
+  @media (max-width: 900px) {
+    .header, .nav, .main { padding-left: 20px; padding-right: 20px; }
+    .compare-wrap { grid-template-columns: 1fr; }
+    .summary-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-badge">TDC Internal · 천지인 팀 · DMS 재구성 분석 · 2026</div>
+  <h1>천지인 <span>문서관리체계 재구성 분석 보고서</span></h1>
+  <div class="header-sub">기존 DMS 폴더 구조 vs 이관 후 신규 B형 구조 · 10개 사용자 역할 접근 경로 변화 분석</div>
+  <div class="header-meta">
+    <div class="meta-item">
+      <span class="meta-label">대상 파일</span>
+      <span class="meta-value">245</span>
+    </div>
+    <div class="meta-item">
+      <span class="meta-label">이관율</span>
+      <span class="meta-value">87.3%</span>
+    </div>
+    <div class="meta-item">
+      <span class="meta-label">분석 사용자</span>
+      <span class="meta-value">10</span>
+    </div>
+    <div class="meta-item">
+      <span class="meta-label">폴더 유형</span>
+      <span class="meta-value small">B형 (GIS·데이터 플랫폼)</span>
+    </div>
+    <div class="meta-item">
+      <span class="meta-label">이관 문제</span>
+      <span class="meta-value small" style="color:#fde68a">0건 (미결 없음)</span>
+    </div>
+  </div>
+</div>
+
+<!-- NAV -->
+<nav class="nav">
+  <div class="nav-tab active" onclick="switchTab(this,'structure')">① 천지인 구조 비교</div>
+  <div class="nav-tab" onclick="switchTab(this,'persona')">② 사용자 경로 변화</div>
+  <div class="nav-tab" onclick="switchTab(this,'matrix')">③ 접근성 변화 매트릭스</div>
+  <div class="nav-tab" onclick="switchTab(this,'summary')">④ 핵심 인사이트</div>
+</nav>
+
+<div class="main">
+
+  <!-- ① 천지인 구조 비교 -->
+  <section class="section active" id="s-structure">
+    <div class="section-title">
+      <div class="dot"></div>
+      천지인 폴더 구조 — 기존 vs 신규 (B형 표준)
+      <span class="sub">245건 · 기존 A–F 6탭 → 신규 역할 기반 6탭</span>
+    </div>
+
+    <div class="compare-wrap">
+      <div class="compare-panel panel-old">
+        <div class="compare-panel-header">
+          기존 폴더 구조
+          <span class="panel-badge">OLD</span>
+        </div>
+        <div class="tree-body">
+          <div class="tree-depth0">📂 1.천지인</div>
+          <div class="tree-depth1">├─ A.프로그램 소개</div>
+          <div class="tree-depth2">│  ├─ 1) 목적</div>
+          <div class="tree-depth2">│  ├─ 2) 사용법</div>
+          <div class="tree-depth2">│  └─ 3) 사용법 (구 Framework버전)</div>
+          <div class="tree-depth1">├─ B.기획</div>
+          <div class="tree-depth2">│  └─ 1) 문서 & UI</div>
+          <div class="tree-depth1">├─ C.개발문서<span class="tree-count">[대형 단일 탭]</span></div>
+          <div class="tree-depth2">│  ├─ 1) 공통(Data & Frame)</div>
+          <div class="tree-depth2">│  ├─ 2) 결과물(공용Data)</div>
+          <div class="tree-depth2">│  ├─ 3) 자료수집</div>
+          <div class="tree-depth2">│  ├─ 4) 선택-검토</div>
+          <div class="tree-depth2">│  ├─ 5) 현장조사</div>
+          <div class="tree-depth2">│  ├─ 6) 현장조사(지형,지반 모델링)</div>
+          <div class="tree-depth2">│  ├─ 7) 구조물편집</div>
+          <div class="tree-depth2">│  ├─ 8) 지세선 및 배수유역</div>
+          <div class="tree-depth2 tree-moved">│  └─ 10) 알고리즘 ⚠ 개발문서와 혼재</div>
+          <div class="tree-depth1">├─ D.XR 플래그십<span class="tree-count">[성격 혼재 탭]</span></div>
+          <div class="tree-depth2">│  ├─ 2) GIS Server</div>
+          <div class="tree-depth2">│  ├─ 4) GIS 시스템 구축</div>
+          <div class="tree-depth2">│  ├─ 5) WAS Server</div>
+          <div class="tree-depth2">│  ├─ 10) 설치 프로그램</div>
+          <div class="tree-depth2">│  └─ 11) 1차년도 산출물</div>
+          <div class="tree-depth1">├─ E.삽도 및 동영상<span class="tree-count">[82건]</span></div>
+          <div class="tree-depth2">│  ├─ 1) 동영상 · 2) 전체 모델 · 3) 측량보정</div>
+          <div class="tree-depth2">│  └─ 6) 건물·도로 · 8) 하수관로 · 9~12) 기타</div>
+          <div class="tree-depth1">└─ F.회의록</div>
+          <div class="tree-depth2">   ├─ 1) 2024년 이전</div>
+          <div class="tree-depth2">   └─ 2) 2025년</div>
+        </div>
+      </div>
+
+      <div class="compare-panel panel-new">
+        <div class="compare-panel-header">
+          신규 폴더 구조 (B형 표준)
+          <span class="panel-badge">NEW</span>
+        </div>
+        <div class="tree-body">
+          <div class="tree-depth0">📂 지형·지반:천지인</div>
+          <div class="tree-depth1 tree-new">├─ 1.기획·조사<span class="tree-count">[46건]</span></div>
+          <div class="tree-depth2">│  ├─ A.프로그램 소개·목적</div>
+          <div class="tree-depth3">│  │  ├─ 1) 목적 · 2) 사용법 · 3) 구 Framework버전</div>
+          <div class="tree-depth2">│  ├─ A-2.기획·UI 문서</div>
+          <div class="tree-depth3">│  │  └─ 1) 문서 & UI</div>
+          <div class="tree-depth2">│  └─ A-3.XR 플래그십 <span style="color:var(--warn);font-size:10px">← D탭에서 이동</span></div>
+          <div class="tree-depth3">│     ├─ 10) 설치 프로그램</div>
+          <div class="tree-depth3">│     └─ 11) 1차년도 산출물</div>
+          <div class="tree-depth1 tree-new">├─ 2.데이터 설계·구조<span class="tree-count">[6건]</span></div>
+          <div class="tree-depth2">│  └─ B.데이터 구조·공통 DB</div>
+          <div class="tree-depth3">│     ├─ 1) 공통(Data & Frame)</div>
+          <div class="tree-depth3">│     └─ 2) 결과물(공용Data)</div>
+          <div class="tree-depth1 tree-new">├─ 3.기능요건·명세<span class="tree-count">[10건]</span></div>
+          <div class="tree-depth2">│  └─ C-3.알고리즘·핵심 로직 <span style="color:var(--warn);font-size:10px">← C탭 혼재에서 분리</span></div>
+          <div class="tree-depth3">│     └─ 10) 알고리즘</div>
+          <div class="tree-depth1 tree-new">├─ 4.개발·구현<span class="tree-count">[73건]</span></div>
+          <div class="tree-depth2">│  └─ D.개발 문서</div>
+          <div class="tree-depth3">│     ├─ 3) 자료수집 · 4) 선택-검토 · 5) 현장조사</div>
+          <div class="tree-depth3">│     ├─ 6) 현장조사(지형,지반 모델링)</div>
+          <div class="tree-depth3">│     └─ 7) 구조물편집 · 8) 지세선 및 배수유역 · 20) 기타</div>
+          <div class="tree-depth1 tree-new">├─ 5.연동·검증<span class="tree-count">[19건]</span></div>
+          <div class="tree-depth2">│  └─ E.GIS·WAS 서버 연동 <span style="color:var(--warn);font-size:10px">← D탭에서 분리</span></div>
+          <div class="tree-depth3">│     ├─ 2) GIS Server · 4) GIS 시스템 구축 · 5) WAS Server</div>
+          <div class="tree-depth1 tree-new">└─ Z.공통참조<span class="tree-count">[91건]</span></div>
+          <div class="tree-depth2">   ├─ Z-1.삽도·동영상 <span style="color:var(--warn);font-size:10px">← E탭 전체 이동</span></div>
+          <div class="tree-depth3">   │  └─ 1)~21) 동영상·모델·측량보정 등 9건</div>
+          <div class="tree-depth2">   └─ Z-2.회의록 <span style="color:var(--warn);font-size:10px">← F탭 이동</span></div>
+          <div class="tree-depth3">      ├─ 1) 2024년 이전 · 2) 2025년</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-title">
+      <div class="dot"></div>
+      탭별 이동 경로 요약
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>기존 탭</th>
+            <th>이동 대상 (신규)</th>
+            <th>변화 유형</th>
+            <th>영향 사용자</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td style="font-family:var(--mono);color:var(--text2)">A.프로그램 소개</td>
+            <td style="font-family:var(--mono);color:var(--good)">1.기획·조사 › A.프로그램 소개·목적</td>
+            <td><span class="impact-badge impact-same">탭 통합</span></td>
+            <td style="font-size:11px;color:var(--text2)">팀장, 신입사원, 제품 기획자</td>
+          </tr>
+          <tr>
+            <td style="font-family:var(--mono);color:var(--text2)">B.기획</td>
+            <td style="font-family:var(--mono);color:var(--good)">1.기획·조사 › A-2.기획·UI 문서</td>
+            <td><span class="impact-badge impact-up">명확성 ↑</span></td>
+            <td style="font-size:11px;color:var(--text2)">UI 디자이너, 제품 기획자</td>
+          </tr>
+          <tr>
+            <td style="font-family:var(--mono);color:var(--text2)">C.개발문서 (대형)</td>
+            <td style="font-family:var(--mono);color:var(--good)">2.데이터 설계·구조 + 3.기능요건·명세 + 4.개발·구현</td>
+            <td><span class="impact-badge impact-mixed">분산 재배치</span></td>
+            <td style="font-size:11px;color:var(--text2)">시니어·주니어 개발자, 지반 엔지니어</td>
+          </tr>
+          <tr>
+            <td style="font-family:var(--mono);color:var(--text2)">D.XR 플래그십</td>
+            <td style="font-family:var(--mono);color:var(--good)">1.기획·조사(기획) + 5.연동·검증(GIS/WAS)</td>
+            <td><span class="impact-badge impact-mixed">기능별 분리</span></td>
+            <td style="font-size:11px;color:var(--text2)">GIS 엔지니어, 서버 관리자</td>
+          </tr>
+          <tr>
+            <td style="font-family:var(--mono);color:var(--text2)">E.삽도 및 동영상</td>
+            <td style="font-family:var(--mono);color:var(--good)">Z.공통참조 › Z-1.삽도·동영상</td>
+            <td><span class="impact-badge impact-up">공통 참조 분리</span></td>
+            <td style="font-size:11px;color:var(--text2)">전체 (검색 편의성 향상)</td>
+          </tr>
+          <tr>
+            <td style="font-family:var(--mono);color:var(--text2)">F.회의록</td>
+            <td style="font-family:var(--mono);color:var(--good)">Z.공통참조 › Z-2.회의록</td>
+            <td><span class="impact-badge impact-up">공통 참조 통합</span></td>
+            <td style="font-size:11px;color:var(--text2)">팀장, QA 테스터</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ② 사용자 경로 변화 -->
+  <section class="section" id="s-persona">
+    <div class="section-title">
+      <div class="dot"></div>
+      10개 사용자 역할 — 주요 접근 경로 변화
+      <span class="sub">기존 대시보드 시나리오 기준 · 신규 B형 탭 구조 대응</span>
+    </div>
+
+    <div class="persona-table-wrap">
+      <table class="persona-table">
+        <thead>
+          <tr>
+            <th style="width:120px">사용자</th>
+            <th style="width:160px">주요 접근 문서</th>
+            <th>기존 경로 (OLD)</th>
+            <th>신규 경로 (NEW)</th>
+            <th style="width:90px">접근성 변화</th>
+            <th style="width:200px">변화 내용</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><div class="persona-name">팀장</div><div class="persona-role">의사결정 / 개요 파악</div></td>
+            <td style="font-size:11px;color:var(--text2)">기획 문서, 회의록</td>
+            <td>
+              <div class="path-old">B.기획<span class="path-arrow">›</span>1) 문서 & UI</div>
+              <div class="path-old">F.회의록<span class="path-arrow">›</span>2025년</div>
+            </td>
+            <td>
+              <div class="path-new">1.기획·조사<span class="path-arrow">›</span>A-2.기획·UI 문서</div>
+              <div class="path-new">Z.공통참조<span class="path-arrow">›</span>Z-2.회의록</div>
+            </td>
+            <td><span class="impact-badge impact-same">유사</span></td>
+            <td><div class="impact-note">탭 이름이 목적 지향적으로 변경. 회의록이 Z탭으로 이동하지만 탭명은 더 명확.</div><div style="margin-top:4px"><span class="delta-chip">클릭 수 ±0</span></div></td>
+          </tr>
+          <tr>
+            <td><div class="persona-name">신입사원</div><div class="persona-role">온보딩 / 사용법 탐색</div></td>
+            <td style="font-size:11px;color:var(--text2)">프로그램 사용법, 개요</td>
+            <td>
+              <div class="path-old">A.프로그램 소개<span class="path-arrow">›</span>2) 사용법</div>
+            </td>
+            <td>
+              <div class="path-new">1.기획·조사<span class="path-arrow">›</span>A.프로그램 소개·목적<span class="path-arrow">›</span>2) 사용법</div>
+            </td>
+            <td><span class="impact-badge impact-up">개선</span></td>
+            <td><div class="impact-note">"프로그램 소개·목적" 카테고리명이 온보딩 목적과 정확히 매핑. 목적·사용법·구버전이 동일 카테고리에 묶임.</div><div style="margin-top:4px"><span class="delta-chip">클릭 수 +1</span></div></td>
+          </tr>
+          <tr>
+            <td><div class="persona-name">시니어 개발자</div><div class="persona-role">핵심 로직 / 알고리즘</div></td>
+            <td style="font-size:11px;color:var(--text2)">알고리즘, 데이터 구조, 개발 전반</td>
+            <td>
+              <div class="path-old">C.개발문서<span class="path-arrow">›</span>10) 알고리즘</div>
+              <div class="path-old">C.개발문서<span class="path-arrow">›</span>1) 공통(Data)</div>
+            </td>
+            <td>
+              <div class="path-new">3.기능요건·명세<span class="path-arrow">›</span>C-3.알고리즘·핵심 로직</div>
+              <div class="path-new">2.데이터 설계·구조<span class="path-arrow">›</span>B.데이터 구조·공통 DB</div>
+            </td>
+            <td><span class="impact-badge impact-up">개선</span></td>
+            <td><div class="impact-note">알고리즘이 전용 탭으로 분리되어 발견 용이. 목적별 탐색 명확. 단, 복수 탭 이동 필요.</div><div style="margin-top:4px"><span class="delta-chip">탭 분산 +1~2</span></div></td>
+          </tr>
+          <tr>
+            <td><div class="persona-name">주니어 개발자</div><div class="persona-role">개발 문서 전반 탐색</div></td>
+            <td style="font-size:11px;color:var(--text2)">개발 문서 전체, 자료수집, 현장조사</td>
+            <td>
+              <div class="path-old">C.개발문서 (8개 하위 폴더)</div>
+            </td>
+            <td>
+              <div class="path-new">2.데이터 설계·구조 / 3.기능요건·명세 / 4.개발·구현</div>
+              <div style="font-size:10px;color:var(--text3);font-family:var(--mono);margin-top:2px">(3개 탭에 분산)</div>
+            </td>
+            <td><span class="impact-badge impact-mixed">혼재</span></td>
+            <td><div class="impact-note">C.개발문서 단일 탭이 3탭으로 분산. 전환 초기 학습 부담 증가. 탭 명칭 이해 후 장기적으로 개선.</div><div style="margin-top:4px"><span class="delta-chip">초기 탐색 부담 ↑</span></div></td>
+          </tr>
+          <tr>
+            <td><div class="persona-name">UI 디자이너</div><div class="persona-role">기획·UI 문서 중심</div></td>
+            <td style="font-size:11px;color:var(--text2)">UI/UX 기획 문서, 화면 설계서</td>
+            <td>
+              <div class="path-old">B.기획<span class="path-arrow">›</span>1) 문서 & UI</div>
+            </td>
+            <td>
+              <div class="path-new">1.기획·조사<span class="path-arrow">›</span>A-2.기획·UI 문서<span class="path-arrow">›</span>1) 문서 & UI</div>
+            </td>
+            <td><span class="impact-badge impact-up">개선</span></td>
+            <td><div class="impact-note">"A-2.기획·UI 문서" 카테고리명이 역할과 정확히 매핑. 기존 "B.기획"보다 의도가 명확. 사실상 동일 경로에 이름만 개선.</div><div style="margin-top:4px"><span class="delta-chip">명확성 ↑↑</span></div></td>
+          </tr>
+          <tr>
+            <td><div class="persona-name">GIS 엔지니어</div><div class="persona-role">GIS 서버 / XR 플래그십</div></td>
+            <td style="font-size:11px;color:var(--text2)">GIS Server, 시스템 구축, XR 산출물</td>
+            <td>
+              <div class="path-old">D.XR 플래그십<span class="path-arrow">›</span>2) GIS Server</div>
+              <div class="path-old">D.XR 플래그십<span class="path-arrow">›</span>4) GIS 시스템 구축</div>
+              <div class="path-old">D.XR 플래그십<span class="path-arrow">›</span>11) 1차년도 산출물</div>
+            </td>
+            <td>
+              <div class="path-new">5.연동·검증<span class="path-arrow">›</span>E.GIS·WAS 서버 연동<span class="path-arrow">›</span>2) GIS Server</div>
+              <div class="path-new">5.연동·검증<span class="path-arrow">›</span>E.GIS·WAS 서버 연동<span class="path-arrow">›</span>4) GIS 시스템 구축</div>
+              <div class="path-new">1.기획·조사<span class="path-arrow">›</span>A-3.XR 플래그십<span class="path-arrow">›</span>11) 1차년도 산출물</div>
+            </td>
+            <td><span class="impact-badge impact-mixed">혼재</span></td>
+            <td><div class="impact-note">GIS 서버 문서는 5.연동·검증으로 명확 분리. 단 XR 산출물이 1.기획·조사로 별도 이동 — 동일 컨텍스트가 2탭에 분산.</div><div style="margin-top:4px"><span class="delta-chip">탭 분산: D→5탭+1탭</span></div></td>
+          </tr>
+          <tr>
+            <td><div class="persona-name">지반 엔지니어</div><div class="persona-role">지형·지반 모델링</div></td>
+            <td style="font-size:11px;color:var(--text2)">현장조사, 지형·지반 모델링</td>
+            <td>
+              <div class="path-old">C.개발문서<span class="path-arrow">›</span>5) 현장조사</div>
+              <div class="path-old">C.개발문서<span class="path-arrow">›</span>6) 현장조사(지형,지반)</div>
+            </td>
+            <td>
+              <div class="path-new">4.개발·구현<span class="path-arrow">›</span>D.개발 문서<span class="path-arrow">›</span>5) 현장조사</div>
+              <div class="path-new">4.개발·구현<span class="path-arrow">›</span>D.개발 문서<span class="path-arrow">›</span>6) 현장조사(지형,지반 모델링)</div>
+            </td>
+            <td><span class="impact-badge impact-same">유사</span></td>
+            <td><div class="impact-note">접근 depth 동일. 탭명이 4.개발·구현으로 변경되어 더 명확. 주요 접근 하위 폴더(5,6)가 동일 탭에 유지.</div><div style="margin-top:4px"><span class="delta-chip">클릭 수 ±0</span></div></td>
+          </tr>
+          <tr>
+            <td><div class="persona-name">제품 기획자</div><div class="persona-role">기획 전반 / 로드맵</div></td>
+            <td style="font-size:11px;color:var(--text2)">프로그램 소개, 기획 문서, XR 산출물</td>
+            <td>
+              <div class="path-old">A.프로그램 소개 (전체)</div>
+              <div class="path-old">B.기획<span class="path-arrow">›</span>1) 문서 & UI</div>
+              <div class="path-old">D.XR 플래그십 (일부)</div>
+            </td>
+            <td>
+              <div class="path-new">1.기획·조사<span class="path-arrow">›</span>A.프로그램 소개·목적</div>
+              <div class="path-new">1.기획·조사<span class="path-arrow">›</span>A-2.기획·UI 문서</div>
+              <div class="path-new">1.기획·조사<span class="path-arrow">›</span>A-3.XR 플래그십</div>
+            </td>
+            <td><span class="impact-badge impact-up">개선</span></td>
+            <td><div class="impact-note">기존 A·B·D 3탭에 분산된 기획 문서가 1.기획·조사 단일 탭으로 통합. 10개 역할 중 가장 큰 수혜.</div><div style="margin-top:4px"><span class="delta-chip">3탭 → 1탭 ↑↑</span></div></td>
+          </tr>
+          <tr>
+            <td><div class="persona-name">QA 테스터</div><div class="persona-role">검증·품질 확인</div></td>
+            <td style="font-size:11px;color:var(--text2)">알고리즘, 연동 검증, 회의록</td>
+            <td>
+              <div class="path-old">C.개발문서<span class="path-arrow">›</span>10) 알고리즘</div>
+              <div class="path-old">D.XR 플래그십<span class="path-arrow">›</span>GIS/WAS</div>
+              <div class="path-old">F.회의록</div>
+            </td>
+            <td>
+              <div class="path-new">3.기능요건·명세<span class="path-arrow">›</span>C-3.알고리즘·핵심 로직</div>
+              <div class="path-new">5.연동·검증<span class="path-arrow">›</span>E.GIS·WAS 서버 연동</div>
+              <div class="path-new">Z.공통참조<span class="path-arrow">›</span>Z-2.회의록</div>
+            </td>
+            <td><span class="impact-badge impact-mixed">혼재</span></td>
+            <td><div class="impact-note">탭명이 QA 업무 언어와 직접 매핑("기능요건·명세", "연동·검증"). 탭 수는 동일하지만 탐색 직관성은 향상.</div><div style="margin-top:4px"><span class="delta-chip">명확성 ↑ / 탭 수 유지</span></div></td>
+          </tr>
+          <tr>
+            <td><div class="persona-name">서버 관리자</div><div class="persona-role">GIS/WAS 서버 운영</div></td>
+            <td style="font-size:11px;color:var(--text2)">WAS Server, GIS Server</td>
+            <td>
+              <div class="path-old">D.XR 플래그십<span class="path-arrow">›</span>5) WAS Server</div>
+              <div class="path-old">D.XR 플래그십<span class="path-arrow">›</span>2) GIS Server</div>
+              <div style="font-size:10.5px;color:var(--bad);font-family:var(--mono);margin-top:2px">⚠ "XR 플래그십" 탭명과 역할 완전 미스매치</div>
+            </td>
+            <td>
+              <div class="path-new">5.연동·검증<span class="path-arrow">›</span>E.GIS·WAS 서버 연동<span class="path-arrow">›</span>5) WAS Server</div>
+              <div class="path-new">5.연동·검증<span class="path-arrow">›</span>E.GIS·WAS 서버 연동<span class="path-arrow">›</span>2) GIS Server</div>
+            </td>
+            <td><span class="impact-badge impact-up">개선</span></td>
+            <td><div class="impact-note">가장 극적인 개선. "D.XR 플래그십"에 숨어있던 서버 문서가 "5.연동·검증 › E.GIS·WAS 서버 연동"으로 분리 — 역할-탭 완벽 매핑.</div><div style="margin-top:4px"><span class="delta-chip">탐색 부담 ↓↓</span></div></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ③ 접근성 변화 매트릭스 -->
+  <section class="section" id="s-matrix">
+    <div class="section-title">
+      <div class="dot"></div>
+      사용자 × 탭 접근성 매트릭스
+      <span class="sub">신규 B형 탭 기준 · 각 역할의 주요 접근 탭</span>
+    </div>
+
+    <div class="matrix-wrap">
+      <table class="matrix-table">
+        <thead>
+          <tr>
+            <th class="row-header" style="width:130px">사용자</th>
+            <th>1.기획·조사</th>
+            <th>2.데이터 설계·구조</th>
+            <th>3.기능요건·명세</th>
+            <th>4.개발·구현</th>
+            <th>5.연동·검증</th>
+            <th>Z.공통참조</th>
+            <th>주요 탭 수</th>
+            <th>접근성 변화</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td class="row-header">팀장</td><td class="cell-yes">●</td><td class="cell-na">—</td><td class="cell-na">—</td><td class="cell-na">—</td><td class="cell-na">—</td><td class="cell-yes">●</td><td style="text-align:center;font-family:var(--mono);font-weight:700">2</td><td><span class="impact-badge impact-same">유사</span></td></tr>
+          <tr><td class="row-header">신입사원</td><td class="cell-yes">●</td><td class="cell-na">—</td><td class="cell-na">—</td><td class="cell-na">—</td><td class="cell-na">—</td><td class="cell-na">—</td><td style="text-align:center;font-family:var(--mono);font-weight:700">1</td><td><span class="impact-badge impact-up">개선</span></td></tr>
+          <tr><td class="row-header">시니어 개발자</td><td class="cell-partial">△</td><td class="cell-yes">●</td><td class="cell-yes">●</td><td class="cell-yes">●</td><td class="cell-partial">△</td><td class="cell-na">—</td><td style="text-align:center;font-family:var(--mono);font-weight:700">3~5</td><td><span class="impact-badge impact-mixed">혼재</span></td></tr>
+          <tr><td class="row-header">주니어 개발자</td><td class="cell-na">—</td><td class="cell-yes">●</td><td class="cell-partial">△</td><td class="cell-yes">●</td><td class="cell-na">—</td><td class="cell-na">—</td><td style="text-align:center;font-family:var(--mono);font-weight:700">2~3</td><td><span class="impact-badge impact-mixed">혼재</span></td></tr>
+          <tr><td class="row-header">UI 디자이너</td><td class="cell-yes">●</td><td class="cell-na">—</td><td class="cell-na">—</td><td class="cell-na">—</td><td class="cell-na">—</td><td class="cell-na">—</td><td style="text-align:center;font-family:var(--mono);font-weight:700">1</td><td><span class="impact-badge impact-up">개선</span></td></tr>
+          <tr><td class="row-header">GIS 엔지니어</td><td class="cell-yes">●</td><td class="cell-na">—</td><td class="cell-na">—</td><td class="cell-na">—</td><td class="cell-yes">●</td><td class="cell-na">—</td><td style="text-align:center;font-family:var(--mono);font-weight:700">2</td><td><span class="impact-badge impact-mixed">혼재</span></td></tr>
+          <tr><td class="row-header">지반 엔지니어</td><td class="cell-na">—</td><td class="cell-na">—</td><td class="cell-na">—</td><td class="cell-yes">●</td><td class="cell-na">—</td><td class="cell-partial">△</td><td style="text-align:center;font-family:var(--mono);font-weight:700">1~2</td><td><span class="impact-badge impact-same">유사</span></td></tr>
+          <tr><td class="row-header">제품 기획자</td><td class="cell-yes">●</td><td class="cell-na">—</td><td class="cell-na">—</td><td class="cell-na">—</td><td class="cell-na">—</td><td class="cell-partial">△</td><td style="text-align:center;font-family:var(--mono);font-weight:700">1~2</td><td><span class="impact-badge impact-up">개선</span></td></tr>
+          <tr><td class="row-header">QA 테스터</td><td class="cell-na">—</td><td class="cell-na">—</td><td class="cell-yes">●</td><td class="cell-partial">△</td><td class="cell-yes">●</td><td class="cell-yes">●</td><td style="text-align:center;font-family:var(--mono);font-weight:700">3</td><td><span class="impact-badge impact-mixed">혼재</span></td></tr>
+          <tr><td class="row-header">서버 관리자</td><td class="cell-na">—</td><td class="cell-na">—</td><td class="cell-na">—</td><td class="cell-na">—</td><td class="cell-yes">●</td><td class="cell-na">—</td><td style="text-align:center;font-family:var(--mono);font-weight:700">1</td><td><span class="impact-badge impact-up">개선</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div style="padding:11px 16px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;font-size:11px;color:var(--text2);margin-bottom:32px">
+      <strong style="color:var(--text)">범례</strong> &nbsp;
+      <span style="color:var(--good)">● 주요 접근</span> &nbsp;·&nbsp;
+      <span style="color:var(--warn)">△ 부분 접근</span> &nbsp;·&nbsp;
+      <span style="color:var(--text3)">— 해당 없음</span>
+    </div>
+
+    <div class="section-title">
+      <div class="dot"></div>
+      접근성 변화 집계
+    </div>
+    <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:8px">
+      <div style="background:rgba(5,150,105,0.07);border:1px solid rgba(5,150,105,0.18);border-radius:8px;padding:18px 24px;text-align:center;flex:1;min-width:130px">
+        <div style="font-size:32px;font-weight:700;color:var(--good)">4</div>
+        <div style="font-size:12px;color:var(--text2);margin-top:4px">개선</div>
+        <div style="font-size:10px;color:var(--text3);margin-top:3px">신입·UI·제품기획자·서버관리자</div>
+      </div>
+      <div style="background:rgba(37,99,235,0.06);border:1px solid rgba(37,99,235,0.18);border-radius:8px;padding:18px 24px;text-align:center;flex:1;min-width:130px">
+        <div style="font-size:32px;font-weight:700;color:var(--blue)">2</div>
+        <div style="font-size:12px;color:var(--text2);margin-top:4px">유사</div>
+        <div style="font-size:10px;color:var(--text3);margin-top:3px">팀장·지반 엔지니어</div>
+      </div>
+      <div style="background:rgba(217,119,6,0.06);border:1px solid rgba(217,119,6,0.18);border-radius:8px;padding:18px 24px;text-align:center;flex:1;min-width:130px">
+        <div style="font-size:32px;font-weight:700;color:var(--warn)">4</div>
+        <div style="font-size:12px;color:var(--text2);margin-top:4px">혼재</div>
+        <div style="font-size:10px;color:var(--text3);margin-top:3px">시니어·주니어 개발자·GIS·QA</div>
+      </div>
+      <div style="background:rgba(220,38,38,0.06);border:1px solid rgba(220,38,38,0.18);border-radius:8px;padding:18px 24px;text-align:center;flex:1;min-width:130px">
+        <div style="font-size:32px;font-weight:700;color:var(--bad)">0</div>
+        <div style="font-size:12px;color:var(--text2);margin-top:4px">악화</div>
+        <div style="font-size:10px;color:var(--text3);margin-top:3px">—</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ④ 핵심 인사이트 -->
+  <section class="section" id="s-summary">
+    <div class="section-title">
+      <div class="dot"></div>
+      핵심 인사이트 및 개선 제안
+    </div>
+
+    <div class="summary-grid">
+      <div class="summary-card">
+        <h3>✅ 신규 구조의 긍정적 변화</h3>
+        <ul class="summary-list">
+          <li><span class="bullet">›</span><span>제품 기획자·서버 관리자: 탭 분산 3탭 → 1탭 통합, 접근 부담 대폭 감소</span></li>
+          <li><span class="bullet">›</span><span>탭 이름이 역할 기반으로 변경 — "기획·조사", "연동·검증" 등 직관성 향상</span></li>
+          <li><span class="bullet">›</span><span>삽도·동영상·회의록이 Z.공통참조로 분리 — 개발 문서와의 혼재 해소</span></li>
+          <li><span class="bullet">›</span><span>알고리즘 문서가 3.기능요건·명세 전용 탭으로 분리 — 시니어 개발자·QA 접근성 향상</span></li>
+          <li><span class="bullet">›</span><span>서버 관리자 핵심 문서(GIS/WAS)가 "D.XR 플래그십" 미스매치 탭에서 탈출</span></li>
+        </ul>
+      </div>
+      <div class="summary-card">
+        <h3>⚠ 주의가 필요한 변화</h3>
+        <ul class="summary-list">
+          <li><span class="bullet">›</span><span>C.개발문서(대형 단일 탭) → 3탭 분산: 주니어 개발자 초기 학습 부담 증가</span></li>
+          <li><span class="bullet">›</span><span>GIS 엔지니어의 D.XR 플래그십이 1.기획·조사와 5.연동·검증 2곳으로 분리</span></li>
+          <li><span class="bullet">›</span><span>C.개발문서에 익숙한 사용자 전환 기간 중 탐색 비용 일시 증가 예상</span></li>
+          <li><span class="bullet">›</span><span>Z.공통참조 91건으로 비대 — 추가 카테고리 분류 고려 필요</span></li>
+        </ul>
+      </div>
+      <div class="summary-card">
+        <h3>💡 후속 분석 제안</h3>
+        <ul class="summary-list">
+          <li><span class="bullet">›</span><span>단순 시나리오(신입·UI): 탭명 변경으로 클릭 수 유지, 완료율 향상 예상</span></li>
+          <li><span class="bullet">›</span><span>복잡 시나리오(개발자·QA): 탭 분산 가중치 반영한 ABI 재산정 필요</span></li>
+          <li><span class="bullet">›</span><span>GIS 엔지니어·QA 테스터 대상 사용성 테스트(UT) 우선 실시 권고</span></li>
+          <li><span class="bullet">›</span><span>서버 관리자 시나리오: pain point 1개 이상 제거 예상 — 실측 비교 권고</span></li>
+        </ul>
+      </div>
+      <div class="summary-card">
+        <h3>📋 천지인 이관 특이사항</h3>
+        <ul class="summary-list">
+          <li><span class="bullet">›</span><span>이관율 87.3% — 6개 S/W 중 최고, 폴더 귀속 판단 이슈 최소화</span></li>
+          <li><span class="bullet">›</span><span>XR 플래그십 28건 귀속 판단 완료가 이관율 향상에 기여</span></li>
+          <li><span class="bullet">›</span><span>삽도·동영상 82건 Z.공통참조 분리 완료 → 91건 집중 현상 발생</span></li>
+          <li><span class="bullet">›</span><span>이관 문제 0건 달성 — 6개 S/W 중 유일하게 미결 사항 없음</span></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="section-title">
+      <div class="dot"></div>
+      다음 액션 아이템
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>#</th><th>항목</th><th>우선순위</th><th>담당</th><th>비고</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td style="font-family:var(--mono);color:var(--text3)">01</td>
+            <td>페르소나 대시보드 시나리오 경로 신규 구조로 일괄 갱신</td>
+            <td><span class="priority-high">🔴 긴급</span></td>
+            <td>천지인 팀</td>
+            <td>C.개발문서 → 3탭 분산 반영 필요</td>
+          </tr>
+          <tr>
+            <td style="font-family:var(--mono);color:var(--text3)">02</td>
+            <td>개발자·QA 시나리오 접근 부담 지수(ABI) 재산정</td>
+            <td><span class="priority-mid">🟡 중요</span></td>
+            <td>천지인 팀</td>
+            <td>복수 탭 탐색 가중치 재검토</td>
+          </tr>
+          <tr>
+            <td style="font-family:var(--mono);color:var(--text3)">03</td>
+            <td>Z.공통참조 91건 추가 분류 검토</td>
+            <td><span class="priority-mid">🟡 중요</span></td>
+            <td>DMS 관리자</td>
+            <td>삽도·동영상 + 회의록 + 잡파일 혼재 가능성</td>
+          </tr>
+          <tr>
+            <td style="font-family:var(--mono);color:var(--text3)">04</td>
+            <td>신규 구조 기반 사용성 테스트(UT) 실시</td>
+            <td><span style="color:var(--blue)">🔵 권고</span></td>
+            <td>천지인 팀</td>
+            <td>주니어 개발자·GIS 엔지니어 우선 대상</td>
+          </tr>
+          <tr>
+            <td style="font-family:var(--mono);color:var(--text3)">05</td>
+            <td>BridgePlanner WayPrimal/Confirm 분리 이관 확정</td>
+            <td><span class="priority-high">🔴 긴급</span></td>
+            <td>구조분야 팀</td>
+            <td>78건 · 별도 S/W 폴더 분리 필요</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+</div>
+
+<script>
+function switchTab(el, id) {
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('s-' + id).classList.add('active');
+}
+</script>
+</body>
+</html>
